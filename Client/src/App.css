@@ -1,0 +1,433 @@
+/* --- 1. GLOBAL RESET: Force terminate white margins/paddings --- */
+html, body, #root {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden;
+  background-color: #ffffff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box; /* Ensures padding doesn't affect element width */
+}
+
+/* Color Variables & Theme Settings */
+:root {
+  --ls-accent: #6c47ff;   /* Primary Purple color */
+  --cart-red: #ff3b30;    /* Red for cart buttons */
+  --nav-bg: #1d1d1f;     /* Dark Navy/Black background for Navbar */
+  --soft-bg: #f5f5f7;    /* Light gray background for secondary sections */
+  --text-main: #1d1d1f;  /* Deep black for main headings */
+  --text-sub: #6e6e73;   /* Muted gray for body text */
+  --color-soft: #60a5fa; /* Software category color */
+  --color-data: #4ade80; /* Data category color */
+  --color-ios: #c084fc;  /* iOS category color */
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-main);
+  background: #fff;
+}
+
+/* --- 2. NAVBAR (Fixed Header) --- */
+.navbar {
+  position: fixed;
+  top: 0; 
+  left: 0;
+  width: 100%;
+  height: 80px;
+  background: var(--nav-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 5%;
+  z-index: 2000; /* Ensure navbar stays on top of all content */
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.brand-logo {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #ffffff;
+  cursor: pointer;
+  letter-spacing: -1px;
+}
+
+/* Center Navigation Links */
+.nav-links {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 35px;
+}
+
+.nav-links span { font-weight: 700; cursor: pointer; font-size: 1rem; transition: 0.3s; }
+.link-soft { color: var(--color-soft); }
+.link-data { color: var(--color-data); }
+.link-ios { color: var(--color-ios); }
+.nav-links span:hover { filter: brightness(1.2); }
+
+.cart-btn-red {
+  background: var(--cart-red);
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.cart-btn-red:hover { transform: scale(1.05); filter: brightness(1.1); }
+
+/* --- 3. HERO SECTION (Split Layout) --- */
+.hero-full-width {
+  width: 100%;
+  min-height: 85vh;
+  background: var(--soft-bg);
+  padding: 120px 8% 80px;
+  display: flex;
+  justify-content: center;
+}
+
+.hero-inner-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1400px;
+  gap: 60px;
+}
+
+.hero-text-left { flex: 1.2; text-align: left; }
+.hero-visual-right { flex: 1; display: flex; justify-content: flex-end; }
+.hero-visual-right img { width: 100%; max-width: 600px; border-radius: 24px; box-shadow: 0 40px 100px rgba(0,0,0,0.1); }
+
+.hero-tag { 
+  color: var(--ls-accent); 
+  font-weight: 800; 
+  font-size: 0.8rem; 
+  letter-spacing: 1.5px; 
+  margin-bottom: 25px; 
+  display: block;
+}
+
+/* Gradient Animated Main Title */
+.hero-art-title {
+  font-size: 5.5rem;
+  font-weight: 900;
+  letter-spacing: -2px;
+  margin: 10px 0 20px 0;
+  background: linear-gradient(135deg, #1d1d1f 20%, #6c47ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 10px 30px rgba(108, 71, 255, 0.3);
+  line-height: 1.1;
+  animation: titleFadeSlideUp 1.5s ease-out; /* Trigger entry animation */
+}
+
+/* Entry Animation Keyframes */
+@keyframes titleFadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px); /* Start from 20px below */
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);    /* End at original position */
+  }
+}
+
+.hero-text-left p { font-size: 1.3rem; color: var(--text-sub); margin-bottom: 40px; line-height: 1.5; }
+
+/* --- 4. LIGHTSPEED GRID LAYOUT (Main Content Sections) --- */
+.ls-section {
+  width: 100%;
+  padding: 120px 8%;
+  border-bottom: 1px solid #eee;
+  background-color: #ffffff;
+}
+
+/* Alternate background color for even-numbered sections */
+.ls-section:nth-child(even) { background: var(--soft-bg); }
+
+.ls-inner {
+  display: flex;
+  gap: 80px;
+  align-items: flex-start;
+}
+
+/* Sticky Left Side Text Column */
+.ls-text {
+  flex: 0 0 380px;
+  position: sticky;
+  top: 120px;
+}
+
+/* Category Label (e.g., ENTERPRISE SOLUTIONS) */
+.ls-text small { 
+  color: var(--ls-accent) !important; 
+  font-weight: 800; 
+  letter-spacing: 1.5px; 
+  display: block; 
+  margin-bottom: 15px; 
+}
+
+/* Category Heading (e.g., Software, Data) */
+.ls-text h2 { 
+  font-size: 3.5rem; 
+  font-weight: 900; 
+  margin-bottom: 25px; 
+  line-height: 1.1; 
+  color: var(--text-main) !important;
+}
+
+/* Category Description */
+.ls-text p { 
+  color: var(--text-sub) !important; 
+  font-size: 1.1rem; 
+  line-height: 1.6; 
+  margin-bottom: 30px; 
+}
+
+/* "Learn More" Outline Button */
+.main-btn-outline {
+  background: none;
+  border: 2px solid var(--text-main) !important; 
+  color: var(--text-main) !important;            
+  padding: 12px 30px;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.main-btn-outline:hover {
+  background-color: var(--text-main);
+  color: #fff !important; 
+}
+
+/* Product Card Grid */
+.ls-product-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 30px;
+}
+
+/* Individual Product Card */
+.ls-product-card {
+  background: #fff;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  border: 1px solid #eee;
+  transition: 0.3s;
+}
+
+.price-tag { font-size: 1.6rem; font-weight: 900; color: var(--ls-accent); margin-bottom: 25px; }
+
+.add-to-cart-btn {
+  width: 100%;
+  padding: 15px;
+  background: var(--text-main);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* --- 5. SHOPPING CART SIDEBAR --- */
+.cart-sidebar {
+  position: fixed;
+  right: -450px; /* Hidden by default off-screen */
+  top: 0;
+  width: 400px;
+  height: 100vh;
+  background: #fff;
+  z-index: 3000;
+  transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 40px;
+  box-shadow: -20px 0 50px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-sidebar.open { right: 0; } /* Slide in when open */
+
+.close-x {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  margin-bottom: 30px;
+  color: #999;
+}
+
+.cart-list { flex: 1; overflow-y: auto; } /* Scrollable item list */
+
+.cart-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.qty-controls button {
+  width: 28px; height: 28px;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cart-item-right { text-align: right; }
+.cart-item-right p { font-weight: 700; margin-bottom: 5px; }
+
+.del-btn {
+  color: #ff3b30;
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cart-total {
+  font-size: 1.8rem;
+  font-weight: 900;
+  padding-top: 25px;
+  border-top: 2px solid var(--text-main);
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Dark background overlay behind the sidebar */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 2500;
+}
+
+/* --- 6. PROJECT DETAIL PAGE --- */
+.detail-page {
+  background-color: #fdfaf5 !important; /* Beige background to match mockups */
+  min-height: 100vh;
+  width: 100%;
+  color: #1d1d1f;
+  margin: 0;
+  padding: 0;
+}
+
+.detail-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40px 8%;
+}
+
+.back-link {
+  font-weight: 700;
+  cursor: pointer;
+  color: #6e6e73;
+  transition: 0.3s;
+}
+.back-link:hover { color: #1d1d1f; }
+
+.detail-logo {
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-size: 0.9rem;
+}
+
+/* Header Text Section */
+.detail-header {
+  text-align: center;
+  padding: 60px 8% 0;
+}
+
+.detail-tag {
+  color: #6c47ff;
+  font-weight: 800;
+  letter-spacing: 2px;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.detail-title {
+  font-size: 6rem; /* Gigantic bold title */
+  font-weight: 900;
+  letter-spacing: -4px;
+  margin: 20px 0;
+  line-height: 1;
+}
+
+.detail-subtitle {
+  font-size: 1.5rem;
+  color: #6e6e73;
+  max-width: 800px;
+  margin: 0 auto 80px;
+  line-height: 1.5;
+}
+
+/* Image Showcase Section */
+.detail-hero-mockup {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  border-radius: 40px 40px 0 0; 
+  overflow: hidden;
+  box-shadow: 0 -20px 80px rgba(0,0,0,0.05);
+}
+
+.detail-hero-mockup img {
+  width: 100%;
+  display: block;
+  transform: scale(1.02); /* Slight scale for visual pop */
+}
+
+/* White Content Body */
+.detail-body {
+  background: #ffffff;
+  padding: 120px 8%;
+  width: 100%;
+}
+
+/* Information Grid (2 Columns) */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; 
+  gap: 100px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.detail-grid-item h3 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 25px;
+}
+
+.detail-grid-item p {
+  font-size: 1.2rem;
+  color: #6e6e73;
+  line-height: 1.8;
+}
+
+.detail-footer {
+  padding: 80px;
+  text-align: center;
+  background: #fff;
+  color: #ccc;
+  font-size: 0.9rem;
+}

@@ -1,0 +1,344 @@
+-- =========================
+-- (5) Sem, 2025
+-- Name: <Chun Jie Hsieh>
+-- Email: <Chun-Jie.Hsieh@student.uts.edu.au>
+-- Student No: <25939707>
+-- Project: IT Job & Salary Insights (SEEK-inspired)
+-- Description:
+--   This database models an IT job & salary platform inspired by SEEK.
+--   It stores companies, jobs, skills (M:N), locations, and salary samples.
+-- Inspiration website URL: https://www.seek.com.au/
+-- =========================
+
+-- ===== Reset (drop in dependency order)
+--DROP VIEW  IF EXISTS v_title_city_stats   CASCADE;
+--DROP VIEW  IF EXISTS v_jobs_with_title_id CASCADE;
+--DROP TABLE IF EXISTS job_skills     CASCADE;
+--DROP TABLE IF EXISTS salary_reports CASCADE;
+--DROP TABLE IF EXISTS jobs           CASCADE;
+--DROP TABLE IF EXISTS skills         CASCADE;
+--DROP TABLE IF EXISTS titles         CASCADE;
+--DROP TABLE IF EXISTS locations      CASCADE;
+--DROP TABLE IF EXISTS companies      CASCADE;
+
+-- ===== Core tables
+CREATE TABLE companies (
+  company_id   SERIAL,
+  company_name TEXT NOT NULL,
+  CONSTRAINT pk_companies                  PRIMARY KEY (company_id),
+  CONSTRAINT uq_companies_company_name     UNIQUE (company_name)
+);
+
+CREATE TABLE titles (
+  title_id   SERIAL,
+  title_name TEXT NOT NULL,
+  CONSTRAINT pk_titles                     PRIMARY KEY (title_id),
+  CONSTRAINT uq_titles_title_name          UNIQUE (title_name)
+);
+
+CREATE TABLE locations (
+  location_id SERIAL,
+  city        TEXT NOT NULL,
+  country     TEXT NOT NULL,
+  CONSTRAINT pk_locations                  PRIMARY KEY (location_id),
+  CONSTRAINT uq_locations_city_country     UNIQUE (city, country)
+);
+
+CREATE TABLE jobs (
+  job_id      SERIAL,
+  company_id  INTEGER NOT NULL,
+  title_id    INTEGER NOT NULL,
+  location_id INTEGER NOT NULL,
+  salary_min  NUMERIC(10,2) NOT NULL,
+  salary_max  NUMERIC(10,2) NOT NULL,
+  CONSTRAINT pk_jobs                       PRIMARY KEY (job_id),
+  CONSTRAINT fk_jobs_company               FOREIGN KEY (company_id)
+      REFERENCES companies(company_id) ON DELETE RESTRICT,
+  CONSTRAINT fk_jobs_title                 FOREIGN KEY (title_id)
+      REFERENCES titles(title_id)     ON DELETE RESTRICT,
+  CONSTRAINT fk_jobs_location              FOREIGN KEY (location_id)
+      REFERENCES locations(location_id) ON DELETE RESTRICT,
+  CONSTRAINT ck_jobs_salary_min_nonneg     CHECK (salary_min >= 0),
+  CONSTRAINT ck_jobs_salary_bounds         CHECK (salary_max >= salary_min)
+);
+
+CREATE TABLE skills (
+  skill_id   SERIAL,
+  skill_name TEXT NOT NULL,
+  CONSTRAINT pk_skills                     PRIMARY KEY (skill_id),
+  CONSTRAINT uq_skills_skill_name          UNIQUE (skill_name)
+);
+
+-- M:N: jobs <-> skills
+CREATE TABLE job_skills (
+  job_id   INTEGER NOT NULL REFERENCES jobs(job_id)    ON DELETE CASCADE,
+  skill_id INTEGER NOT NULL REFERENCES skills(skill_id) ON DELETE RESTRICT,
+  PRIMARY KEY (job_id, skill_id)
+);
+
+-- Optional salary samples (from SEEK ranges or self-made)
+CREATE TABLE salary_reports (
+  report_id        SERIAL PRIMARY KEY,
+  title_id         INTEGER NOT NULL
+                   REFERENCES titles(title_id)       ON DELETE RESTRICT,
+  location_id      INTEGER NOT NULL
+                   REFERENCES locations(location_id) ON DELETE RESTRICT,
+  years_experience NUMERIC(4,1) CHECK (years_experience BETWEEN 0 AND 40),
+  education_level  TEXT CHECK (education_level IN ('HighSchool','Bachelor','Master','PhD')),
+  gender           TEXT CHECK (gender IN ('Male','Female','Other')),
+  annual_salary    NUMERIC(12,2) NOT NULL CHECK (annual_salary >= 0),
+  reported_at      DATE NOT NULL DEFAULT CURRENT_DATE
+);
+
+-- Helpful indexes
+CREATE INDEX IF NOT EXISTS idx_jobs_company  ON jobs(company_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_title    ON jobs(title_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_location ON jobs(location_id);
+CREATE INDEX IF NOT EXISTS idx_sr_title      ON salary_reports(title_id);
+CREATE INDEX IF NOT EXISTS idx_sr_location   ON salary_reports(location_id);
+
+-- ===== Views
+
+-- Helper view so we can demonstrate NATURAL JOIN on title_id
+CREATE VIEW v_jobs_with_title_id AS
+SELECT j.job_id, j.company_id, j.title_id, j.location_id, j.salary_min, j.salary_max
+FROM jobs j;
+
+-- Aggregated salary stats: per title per city
+CREATE VIEW v_title_city_stats AS
+SELECT
+  t.title_name,
+  l.city,
+  COUNT(*)                    AS samples,
+  ROUND(AVG(s.annual_salary)) AS avg_salary,
+  MIN(s.annual_salary)        AS min_salary,
+  MAX(s.annual_salary)        AS max_salary
+FROM salary_reports s
+JOIN titles    t ON t.title_id    = s.title_id
+JOIN locations l ON l.location_id = s.location_id
+GROUP BY t.title_name, l.city;
+
+-- ===== Six required queries (include English descriptions)
+
+-- (1) Simple single-table query
+-- List all companies.
+SELECT company_id, company_name
+FROM companies;
+
+-- (2) NATURAL JOIN
+-- English: List job IDs with their title names via NATURAL JOIN on title_id.
+SELECT v.job_id, t.title_name
+FROM v_jobs_with_title_id v
+NATURAL JOIN titles t;
+
+-- (3) Cross product equivalent of the NATURAL JOIN above
+-- English: Cross product equivalent of (2) using WHERE to join.
+SELECT v.job_id, t.title_name
+FROM v_jobs_with_title_id v, titles t
+WHERE v.title_id = t.title_id;
+
+-- (4) GROUP BY (+ HAVING)
+-- English: Titles whose average reported salary in Sydney is at least 90k.
+SELECT t.title_name, ROUND(AVG(s.annual_salary)) AS avg_salary
+FROM salary_reports s
+JOIN titles    t ON t.title_id    = s.title_id
+JOIN locations l ON l.location_id = s.location_id
+WHERE l.city = 'Sydney'
+GROUP BY t.title_name
+HAVING AVG(s.annual_salary) >= 90000
+ORDER BY avg_salary DESC;
+
+-- (5) Subquery
+-- English: Jobs whose max salary is above the global average salary of their title (from salary_reports).
+SELECT j.job_id, t.title_name, j.salary_max
+FROM jobs j
+JOIN titles t ON t.title_id = j.title_id
+WHERE j.salary_max > (
+  SELECT AVG(s2.annual_salary)
+  FROM salary_reports s2
+  WHERE s2.title_id = j.title_id
+);
+
+-- (6) Cross product that cannot be implemented with NATURAL JOIN (self-join)
+-- English: Pairs of different jobs within the same company (title A vs title B).
+SELECT c.company_name, t1.title_name AS title_a, t2.title_name AS title_b
+FROM jobs j1, jobs j2, companies c, titles t1, titles t2
+WHERE j1.company_id = j2.company_id
+  AND j1.job_id < j2.job_id
+  AND c.company_id = j1.company_id
+  AND t1.title_id  = j1.title_id
+  AND t2.title_id  = j2.title_id;
+
+-- 
+DELETE FROM companies WHERE company_id = (SELECT company_id FROM jobs LIMIT 1);
+-- ===== End of schema.sql
+
+-- ===== A. Seed: companies / titles / locations / skills =====
+
+-- Companies
+INSERT INTO companies (company_name) VALUES
+('Essential Services Commission of SA'),
+('Ploomo'),
+('Ventura Bus Lines'),
+('Covetrus'),
+('Collective Intelligence Group - CIIQ360 Inc.'),
+('Yarra Valley Water'),
+('National Heavy Vehicle Regulator'),
+('City of Gold Coast'),
+('Bluefin Resources Pty Limited'),
+('Tibra Capital'),
+('Morgan Consulting'),
+('Robert Half'),
+('Talenza'),
+('Talent Specialists in tech, transformation & beyond'),
+('That Blue Screen'),
+('Federation University Australia'),
+('Indigenous Business Australia')
+ON CONFLICT (company_name) DO NOTHING;
+
+-- Titles
+INSERT INTO titles (title_name) VALUES
+('Data Analyst'),
+('Junior Data Analyst'),
+('Graduate Data Analyst'),
+('Data Conversion Specialist'),
+('Data Scientist'),
+('Graduate Data Scientist'),
+('AI Data Scientist'),
+('Data Scientist, Asset Analytics'),
+('Quant Trader Developer Data Science and Analytics'),
+('Data Engineer'),
+('Senior Data Engineer'),
+('Developer, Data Engineer')
+ON CONFLICT (title_name) DO NOTHING;
+
+-- Locations  (country='Australia')
+INSERT INTO locations (city, country) VALUES
+('Adelaide', 'Australia'),
+('Melbourne', 'Australia'),
+('Dandenong', 'Australia'),
+('Brisbane', 'Australia'),
+('Sydney', 'Australia'),
+('Mitcham', 'Australia'),
+('Parramatta', 'Australia'),
+('Gold Coast', 'Australia'),
+('Canberra', 'Australia'),
+('Wollongong', 'Australia')
+ON CONFLICT (city, country) DO NOTHING;
+
+-- Skills dictionary
+INSERT INTO skills (skill_name) VALUES
+('SQL'), ('Python'), ('R'), ('Excel'),
+('Power BI'), ('Tableau'),
+('Azure'), ('AWS'), ('Databricks'), ('Snowflake'),
+('Pipelines'), ('ETL'), ('Data Warehousing'),
+('Data Governance'), ('Data Quality'), ('Data Integration'),
+('Microsoft SQL Server'),
+('Kafka'), ('Docker'), ('Git'),
+('NLP'), ('LLM'), ('VectorDB'),
+('Algorithms'), ('Predictive Modeling'),
+('Statistics'), ('Data Visualisation')
+ON CONFLICT (skill_name) DO NOTHING;
+
+-- ===== B1. Stage jobs into a staging table =====
+
+DROP TABLE IF EXISTS seek_jobs;
+CREATE TABLE seek_jobs (
+  company_name  text,
+  title_name    text,
+  city          text,
+  country       text,
+  salary_min    numeric(10,2),
+  salary_max    numeric(10,2),
+  skills_pipe   text   
+);
+
+INSERT INTO seek_jobs (company_name, title_name, city, country, salary_min, salary_max, skills_pipe) VALUES
+-- 1
+('Essential Services Commission of SA','Data Analyst','Adelaide','Australia',76561,80256,'SQL|Power BI|Excel|Data Visualisation'),
+-- 2
+('Ploomo','Junior Data Analyst','Melbourne','Australia',60000,75000,'SQL|Excel|Power BI'),
+-- 3
+('Ventura Bus Lines','Graduate Data Analyst','Dandenong','Australia',70000,70000,'SQL|Excel|Power BI'),
+-- 4
+('Covetrus','Data Conversion Specialist','Brisbane','Australia',85000,95000,'SQL|ETL|Pipelines|Azure'),
+-- 5
+('Collective Intelligence Group - CIIQ360 Inc.','Data Analyst','Sydney','Australia',90000,110000,'Data Governance|Data Quality|SQL|Power BI'),
+-- 6
+('Yarra Valley Water','Data Scientist, Asset Analytics','Mitcham','Australia',130000,152582,'Python|SQL|Statistics|Data Visualisation'),
+-- 7
+('National Heavy Vehicle Regulator','Data Scientist','Parramatta','Australia',132035,132035,'Python|SQL|Databricks|Azure|Predictive Modeling'),
+-- 8
+('City of Gold Coast','Graduate Data Scientist','Gold Coast','Australia',86611,92484,'Python|SQL|Statistics'),
+-- 9
+('Bluefin Resources Pty Limited','AI Data Scientist','Sydney','Australia',150000,170000,'Python|LLM|NLP|Azure|VectorDB|Algorithms'),
+-- 10 
+('Bluefin Resources Pty Limited','Data Scientist','Melbourne','Australia',88000,99000,'Python|Predictive Modeling|Data Visualisation'),
+-- 11
+('Tibra Capital','Quant Trader Developer Data Science and Analytics','Wollongong','Australia',150000,150000,'Python|Algorithms|Statistics'),
+-- 12
+('Morgan Consulting','Data Engineer','Melbourne','Australia',140000,160000,'Pipelines|ETL|Snowflake|Microsoft SQL Server'),
+-- 13
+('Robert Half','Data Engineer','Sydney','Australia',130000,140000,'Pipelines|Data Integration|Data Governance|Microsoft SQL Server'),
+-- 14
+('Talenza','Data Engineer','Sydney','Australia',220000,253000,'AWS|Snowflake|ETL|Pipelines'),
+-- 15
+('Talent  Specialists in tech, transformation & beyond','Data Engineer','Brisbane','Australia',140000,160000,'Pipelines|Data Warehousing|Data Security'),
+-- 16  
+('That Blue Screen','Senior Data Engineer','Canberra','Australia',192000,240000,'Azure|ETL|Data Migration|Data Security|Pipelines'),
+-- 17
+('Federation University Australia','Developer, Data Engineer','Melbourne','Australia',100779,108919,'Data Management|Pipelines|Data Warehousing'),
+-- 18
+('Indigenous Business Australia','Data Engineer','Sydney','Australia',157690,184761,'Analysis|Microsoft SQL Server|Pipelines|Data Governance');
+
+-- ===== B2. Load into jobs + job_skills =====
+
+-- (1) Create jobs(company/title/location/salary)
+INSERT INTO jobs (company_id, title_id, location_id, salary_min, salary_max)
+SELECT
+  c.company_id,
+  t.title_id,
+  l.location_id,
+  sj.salary_min,
+  sj.salary_max
+FROM seek_jobs sj
+JOIN companies c ON c.company_name = sj.company_name
+JOIN titles    t ON t.title_name   = sj.title_name
+JOIN locations l ON l.city         = sj.city AND l.country = sj.country
+ON CONFLICT DO NOTHING;
+
+-- (2) skills_pipe → job_skills (M:N)
+INSERT INTO job_skills (job_id, skill_id)
+SELECT
+  j.job_id,
+  s.skill_id
+FROM seek_jobs sj
+JOIN companies c ON c.company_name = sj.company_name
+JOIN titles    t ON t.title_name   = sj.title_name
+JOIN locations l ON l.city         = sj.city AND l.country = sj.country
+JOIN jobs      j ON j.company_id=c.company_id
+                AND j.title_id=t.title_id
+                AND j.location_id=l.location_id
+                AND j.salary_min = sj.salary_min
+                AND j.salary_max = sj.salary_max
+CROSS JOIN LATERAL unnest(string_to_array(sj.skills_pipe, '|')) AS u(skill_name)
+JOIN skills s ON s.skill_name = trim(u.skill_name)
+ON CONFLICT DO NOTHING;
+
+-- See results
+SELECT COUNT(*) AS companies   FROM companies;
+SELECT COUNT(*) AS titles      FROM titles;
+SELECT COUNT(*) AS locations   FROM locations;
+SELECT COUNT(*) AS jobs        FROM jobs;
+SELECT COUNT(*) AS job_skills  FROM job_skills;
+
+-- Speed view
+SELECT c.company_name, t.title_name, l.city, j.salary_min, j.salary_max
+FROM jobs j
+JOIN companies c USING (company_id)
+JOIN titles    t USING (title_id)
+JOIN locations l USING (location_id)
+ORDER BY j.job_id DESC
+LIMIT 10;
+
+
